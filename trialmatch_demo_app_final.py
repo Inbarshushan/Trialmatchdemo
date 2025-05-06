@@ -9,7 +9,7 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Page config and logo
 st.set_page_config(page_title="TrialMatch Demo", page_icon="🔬")
-st.image("trialmatch_logo_small.png", width=120)
+st.image("A_logo_for_a_company_named_TrialMatch_is_displayed.png", width=120)
 st.title("TrialMatch – התאמת מטופלים למחקרים קליניים באמצעות בינה מלאכותית")
 
 # Upload files

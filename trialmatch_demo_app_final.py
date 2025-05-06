@@ -9,7 +9,7 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Page config and logo
 st.set_page_config(page_title="TrialMatch Demo", page_icon="🔬")
-st.image("A_logo_for_a_company_named_TrialMatch_is_displayed.png", width=120)
+st.image("A_logo_for_a_company_named_TrialMatch_is_displayed.png", width=180)
 st.title("TrialMatch – התאמת מטופלים למחקרים קליניים באמצעות בינה מלאכותית")
 
 # Upload files
@@ -46,28 +46,33 @@ if protocol_file and medical_files:
             reader = PdfReader(file)
             all_medical_text += "\n".join([page.extract_text() for page in reader.pages])
 
-        # Perform smart matching using GPT
-        matching_prompt = f'''
-        נתח את ההתאמה בין מידע רפואי של מטופל לבין קריטריוני מחקר קליני.
+        # Perform smart matching using GPT with better instruction
+        system_prompt = '''
+אתה עוזר מחקר קליני במערכת בשם TrialMatch. תפקידך לבדוק האם מטופלת מתאימה להשתתפות במחקר קליני, על סמך השוואה בין המידע הרפואי שלה לבין הקריטריונים מתוך פרוטוקול המחקר.
 
-        קריטריוני מחקר:
-        {extracted_criteria}
+אנא החזר את תשובתך בפורמט הבא:
 
-        מידע רפואי של המטופל:
-        {all_medical_text[:6000]}
+1. קריטריוני הכללה (Inclusion Criteria): עבור כל קריטריון – ציין אם מתקיים או לא, עם הסבר קצר.
+2. קריטריוני אי-הכללה (Exclusion Criteria): כנ"ל – לכל סעיף הסבר אם מתקיים או לא.
+3. מסקנה סופית – האם המטופלת מתאימה למחקר? אם חסר מידע – ציין זאת.
 
-        החזר תשובה בפורמט:
-        • קריטריונים שנבדקו – לכל אחד ציין האם מתקיים או לא, והסבר קצר
-        • אם חסר מידע – כתוב זאת
-        • מסקנה סופית – האם המטופל מתאים למחקר? והאם נדרשת בדיקה נוספת.
-
-        נא להציג זאת באופן מסודר וברור.
-        '''
+השב בצורה קלינית, מסודרת, בהירה – בשפה מקצועית ונגישה. אל תשתמש במשפטים כלליים. אל תדגיש נושאים משפטיים או סודיות – רק ניתוח קליני של ההתאמה.
+'''
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": matching_prompt}]
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f'''
+קריטריוני מחקר:
+{extracted_criteria}
+
+מידע רפואי של המטופל:
+{all_medical_text[:6000]}
+                '''}
+            ]
         ).choices[0].message.content
 
         st.subheader("🧠 תוצאת ההתאמה:")
         st.markdown(response)
+      

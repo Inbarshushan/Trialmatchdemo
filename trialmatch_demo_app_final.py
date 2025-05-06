@@ -2,7 +2,6 @@
 import streamlit as st
 from PyPDF2 import PdfReader
 from openai import OpenAI
-import os
 
 # Load API key
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -18,38 +17,35 @@ medical_files = st.file_uploader("📁 העלה קבצי מידע רפואי ש�
 
 if protocol_file and medical_files:
     with st.spinner("🔍 מבצע ניתוח והשוואה..."):
-        # Read protocol PDF
+        # שלב 1: קריאת פרוטוקול
         protocol_reader = PdfReader(protocol_file)
         protocol_text = "\n".join([page.extract_text() for page in protocol_reader.pages])
 
-        # Extract only inclusion/exclusion criteria using GPT
         extraction_prompt = f'''
-        להלן טקסט מתוך פרוטוקול מחקר קליני. אתר רק את סעיפי הקריטריונים להכללה ואי-הכללה.
-        החזר את הטקסט שלהם בלבד בפורמט ברור:
-        ### קריטריוני הכללה:
-        ...
-        ### קריטריוני אי-הכללה:
-        ...
-        
-        פרוטוקול:
-        {protocol_text[:6000]}
-        '''
+להלן טקסט מתוך פרוטוקול מחקר קליני. אתר רק את סעיפי הקריטריונים להכללה ואי-הכללה.
+החזר את הטקסט שלהם בלבד בפורמט ברור:
+### קריטריוני הכללה:
+...
+### קריטריוני אי-הכללה:
+...
 
+פרוטוקול:
+{protocol_text[:6000]}
+'''
         extracted_criteria = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": extraction_prompt}]
         ).choices[0].message.content
 
-        # Read medical PDFs
+        # שלב 2: קריאת מידע רפואי
         all_medical_text = ""
         for file in medical_files:
             reader = PdfReader(file)
             all_medical_text += "\n".join([page.extract_text() for page in reader.pages])
 
-        # Perform smart matching using GPT with better instruction
-        system_prompt = '''
-matching_prompt = f'''
-אנא נתח את ההתאמה בין מידע רפואי של מטופל לבין קריטריוני מחקר קליני.
+        # שלב 3: השוואה חכמה
+        matching_prompt = f'''
+אנא נתח את ההתאמה בין מידע רפואי של מטופלת לבין קריטריוני מחקר קליני.
 
 החזר את הפלט בפורמט הבא:
 
@@ -59,7 +55,7 @@ matching_prompt = f'''
 - **דרוש**: [מה הקריטריון דורש]
 - **המטופלת**: [מה מופיע בתיק הרפואי]
 - ✅/❌/⚠️ [התאמה + הסבר קצר]
-"""
+
 #### שלב מחלה:
 - **דרוש**: [...]
 - **המטופלת**: [...]
@@ -68,21 +64,25 @@ matching_prompt = f'''
 [המשך לכל קריטריון משמעותי: טיפול קודם, טיפול נוכחי, בדיקות וכו']
 
 ### ❌ קריטריוני אי-הכללה:
-- [לציין אם נמצא משהו רלוונטי לפי המידע הרפואי – אם אין, לציין "לא נמצאו גורמי הוצאה ידועים"]
+- [ציין אם נמצא משהו רלוונטי לפי המידע הרפואי – אם אין, כתוב "לא נמצאו גורמי הוצאה ידועים"]
 
 ### מסקנה:
-- סכם האם המטופלת מתאימה להשתתף במחקר.
-- אם חסר מידע – ציין מה בדיוק חסר, ומה נדרש לבדוק כדי להשלים את התמונה.
-"""
+- האם המטופלת מתאימה למחקר?
+- אם חסר מידע – ציין מה בדיוק חסר ומה נדרש לבדוק.
+
 קריטריוני מחקר:
 {extracted_criteria}
 
-מידע רפואי של המטופל:
+מידע רפואי של המטופלת:
 {all_medical_text[:6000]}
 '''
-
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": matching_prompt}]
         ).choices[0].message.content
 
+        # הצגת התוצאה
         st.subheader("🧠 תוצאת ההתאמה:")
         st.markdown(response)
+
       

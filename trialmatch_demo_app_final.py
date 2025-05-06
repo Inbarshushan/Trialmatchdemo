@@ -9,7 +9,7 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Page config and logo
 st.set_page_config(page_title="TrialMatch Demo", page_icon="🔬")
-st.image("A_logo_for_a_company_named_TrialMatch_is_displayed.png", width=180)
+st.image("A_logo_for_a_company_named_TrialMatch_is_displayed.png", width=200)
 st.title("TrialMatch – התאמת מטופלים למחקרים קליניים באמצעות בינה מלאכותית")
 
 # Upload files
@@ -48,29 +48,39 @@ if protocol_file and medical_files:
 
         # Perform smart matching using GPT with better instruction
         system_prompt = '''
-אתה עוזר מחקר קליני במערכת בשם TrialMatch. תפקידך לבדוק האם מטופלת מתאימה להשתתפות במחקר קליני, על סמך השוואה בין המידע הרפואי שלה לבין הקריטריונים מתוך פרוטוקול המחקר.
+matching_prompt = f'''
+אנא נתח את ההתאמה בין מידע רפואי של מטופל לבין קריטריוני מחקר קליני.
 
-אנא החזר את תשובתך בפורמט הבא:
+החזר את הפלט בפורמט הבא:
 
-1. קריטריוני הכללה (Inclusion Criteria): עבור כל קריטריון – ציין אם מתקיים או לא, עם הסבר קצר.
-2. קריטריוני אי-הכללה (Exclusion Criteria): כנ"ל – לכל סעיף הסבר אם מתקיים או לא.
-3. מסקנה סופית – האם המטופלת מתאימה למחקר? אם חסר מידע – ציין זאת.
+### קריטריונים מרכזיים מהפרוטוקול והאם המטופלת עומדת בהם:
 
-השב בצורה קלינית, מסודרת, בהירה – בשפה מקצועית ונגישה. אל תשתמש במשפטים כלליים. אל תדגיש נושאים משפטיים או סודיות – רק ניתוח קליני של ההתאמה.
-'''
+#### אבחנה:
+- **דרוש**: [מה הקריטריון דורש]
+- **המטופלת**: [מה מופיע בתיק הרפואי]
+- ✅/❌/⚠️ [התאמה + הסבר קצר]
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f'''
+#### שלב מחלה:
+- **דרוש**: [...]
+- **המטופלת**: [...]
+- ✅/❌/⚠️ [...]
+
+[המשך לכל קריטריון משמעותי: טיפול קודם, טיפול נוכחי, בדיקות וכו']
+
+### ❌ קריטריוני אי-הכללה:
+- [לציין אם נמצא משהו רלוונטי לפי המידע הרפואי – אם אין, לציין "לא נמצאו גורמי הוצאה ידועים"]
+
+### מסקנה:
+- סכם האם המטופלת מתאימה להשתתף במחקר.
+- אם חסר מידע – ציין מה בדיוק חסר, ומה נדרש לבדוק כדי להשלים את התמונה.
+
 קריטריוני מחקר:
 {extracted_criteria}
 
 מידע רפואי של המטופל:
 {all_medical_text[:6000]}
-                '''}
-            ]
+'''
+
         ).choices[0].message.content
 
         st.subheader("🧠 תוצאת ההתאמה:")

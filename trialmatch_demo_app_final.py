@@ -79,7 +79,7 @@ if protocol_file and medical_files:
 
         # Run the comparison
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4-turbo",
             messages=[{"role": "user", "content": matching_prompt}]
         ).choices[0].message.content
 

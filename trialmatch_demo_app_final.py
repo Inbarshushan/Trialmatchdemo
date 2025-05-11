@@ -3,7 +3,7 @@ import streamlit as st
 from PyPDF2 import PdfReader
 from openai import OpenAI
 
-# Load API key from Streamlit secrets
+# Load API key
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Page settings and logo
@@ -11,18 +11,18 @@ st.set_page_config(page_title="TrialMatch Demo", page_icon="🔬")
 st.image("A_logo_for_a_company_named_TrialMatch_is_displayed.png", width=200)
 st.title("TrialMatch – התאמת מטופלים למחקרים קליניים באמצעות בינה מלאכותית")
 
-# File upload section
+# Upload section
 protocol_file = st.file_uploader("📄 העלה את פרוטוקול המחקר (PDF)", type="pdf")
 medical_files = st.file_uploader("📁 העלה קבצי מידע רפואי של המטופל (PDF)", type="pdf", accept_multiple_files=True)
 
 if protocol_file and medical_files:
     with st.spinner("🔍 מבצע ניתוח והשוואה..."):
-        # Read protocol PDF
+        # Read protocol
         protocol_reader = PdfReader(protocol_file)
         protocol_text = "\n".join([page.extract_text() for page in protocol_reader.pages])
 
-        # Extract inclusion/exclusion criteria using GPT
-        extraction_prompt = f'''
+        # Step 1: Extract criteria
+        extraction_prompt = f"""
         להלן טקסט מתוך פרוטוקול מחקר קליני. אתר רק את סעיפי הקריטריונים להכללה ואי-הכללה.
         החזר את הטקסט שלהם בלבד בפורמט ברור:
         ### קריטריוני הכללה:
@@ -32,50 +32,67 @@ if protocol_file and medical_files:
         
         פרוטוקול:
         {protocol_text[:6000]}
-        '''
+        """
 
         extracted_criteria = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[{"role": "user", "content": extraction_prompt}]
         ).choices[0].message.content
 
-        # Read and combine all medical PDFs
+        # Step 2: Read all medical PDFs
         all_medical_text = ""
         for file in medical_files:
             reader = PdfReader(file)
             all_medical_text += "\n".join([page.extract_text() for page in reader.pages])
 
-     matching_prompt = f'''
-להלן מידע רפואי של מטופלת וקריטריוני הכללה ואי הכללה מתוך פרוטוקול מחקר קליני.
-אנא בצע ניתוח מקצועי ומובנה האם המטופלת מתאימה להשתתף במחקר. 
-השתמש בפורמט הבא:
+        # Step 3: Smart matching with example
+        matching_prompt = f"""
+להלן דוגמה לתשובה מסודרת:
 
-### קריטריוני הכללה:
-- [ציין כל קריטריון מרכזי, תכתוב האם מתקיים או לא ולמה. תשתמש ב־✅ / ❌ / ⚠️]
+אבחנה:
+דרוש: סרטן שד מוקדם (Early Breast Cancer), חיובי ל-ER, שלילי ל-HER2.
+המטופלת: HR+ (ER חיובי), HER2−.
+✔️ מתאים.
 
-### קריטריוני אי-הכללה:
-- [בדוק אם קיים מידע על כל קריטריון, וכתוב אותו באותו אופן]
+שלב מחלה:
+דרוש: שלב I-III בסיכון בינוני או גבוה (טבלה 4 בפרוטוקול).
+המטופלת: שלב מוקדם, ללא עדות למחלה גרורתית.
+⚠️ חסר מידע מפורש על דירוג הסיכון.
 
-### סיכום:
-- סכם בקצרה האם המטופלת מתאימה למחקר.
-- אם חסר מידע, ציין בדיוק מה חסר.
+טיפול נוכחי:
+דרוש: טיפול אנדוקריני מסוג טמוקסיפן או אנאסטרוזול.
+המטופלת: נוטלת אנאסטרוזול.
+✔️ מתאים.
 
-שמור על שפה מקצועית, רפואית, ברורה ומובנת – כמו שמסבירים לרופא.
-'''
+---
+
+כעת נתח את המידע הבא:
 
 קריטריוני מחקר:
 {extracted_criteria}
 
 מידע רפואי של המטופל:
 {all_medical_text[:6000]}
+
+אנא בצע ניתוח מקצועי לפי הפורמט הבא:
+
+### קריטריוני הכללה:
+- ציין כל קריטריון מרכזי – האם מתקיים ✅ / לא מתקיים ❌ / חסר מידע ⚠️ והסבר מדוע.
+
+### קריטריוני אי-הכללה:
+- ציין אם מתקיים ❌ / לא מתקיים ✅ / חסר מידע ⚠️.
+
+### מסקנה:
+- האם המטופל מתאים להשתתף במחקר הקליני? ציין זאת בצורה ברורה.
+- אם חסר מידע – פרט בדיוק מה חסר.
         """
 
-        # Run the comparison
+        # Get response
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": matching_prompt}]
         ).choices[0].message.content
 
-        # Display result
+        # Show result
         st.subheader("🧠 תוצאת ההתאמה:")
         st.markdown(response)

@@ -31,7 +31,7 @@ if protocol_file and medical_files:
         ...
         
         פרוטוקול:
-        {protocol_text[:6000]}
+        {protocol_text[:10000]}
         """
 
         extracted_criteria = client.chat.completions.create(
